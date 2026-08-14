@@ -1,3 +1,4 @@
 .env
 venv/
 csic_rnn_inputs.pt
+PLAN.md
