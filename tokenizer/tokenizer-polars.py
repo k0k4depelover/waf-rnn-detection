@@ -13,26 +13,32 @@ import polars as pl
 import torch
 
 
-df = pl.read_parquet("./preprocesing/csic_cleaned.parquet")
+df = pl.read_parquet("./preprocessing/csic_cleaned.parquet")
 
 
 '''
-    Crear un tensor con las columnas en el dataset.
-    Se define ademas la cantidad maxima de caracteres por cada 
-    una de las columnas.
+    Create a tensor with the target column 
+    using pytorch.
+    Then defining all the labels for the text columns and asign it a maximum 
+    length.
 '''
 
 y = torch.tensor(df["Label"].to_list(), dtype=torch.float32)
 
 
-cols_texto = ['Method', 'User-Agent', 'Pragma', 
+cols_text = ['Method', 'User-Agent', 'Pragma', 
               'Cache-Control', 'Accept', 'Accept-encoding', 'Accept-charset', 
-              'language', 'host', 'cookie', 'content-type', 'connection', 'content',
-                'classification', 'URL', 'URL-encoded' ]
+              'language', 'host', 'cookie', 'content-type', 'connection', 'content', 'URL', 'URL_decoded']
+
+
+cols_num = [
+    "lenght", "classification"
+]
+
 
 
 max_lens = {
-    'Method' :6 ,
+    'Method' :7 ,
     'User-Agent':  100, 
     'Pragma' : 50,
     'Cache-Control': 50 ,
@@ -46,6 +52,92 @@ max_lens = {
     'connection': 20 ,
     'content': 250 ,
     'URL': 250 , 
-    'URL-encoded': 250 
+    'URL_decoded': 250 
 }
 
+
+'''
+    The second step in tokenization process is to create an alphabet with all diferent
+    characters in dataframe.
+
+'''
+
+
+unic_chars = set()
+
+for col in cols_text:
+    for text in df[col]:
+        unic_chars.update(text)
+
+sorted_chars = sorted(list(unic_chars))
+
+alphabet = { char: i+2 for i, char in enumerate(sorted_chars)}
+
+alphabet["<UNK>"] = 0
+alphabet["<PAD>"] = 1
+
+
+'''
+
+    Third step is the actual tokenization of dataset, for this we are going to define a function.
+    Which will map each character to an ID in `alphabet` that we create in the previous step.
+
+    Input : Text of column, Max lenght of column
+    Output: List of ID's
+'''
+
+def text_to_id ( text:str, max_length : int ) -> list[int]: 
+    tokens = [ alphabet.get(char, alphabet["<UNK>"]) for char in text[:max_length]]
+
+    if len(tokens) < max_length:
+        padding = (max_length - len(tokens) )
+        tokens += [alphabet['<PAD>']] * padding
+
+    return tokens[:max_length]
+
+
+
+'''
+
+    This is the actual implementation of the function, the workflow is:
+
+    Creates an empty array, then visits every single column of our labels array
+    an applying our `text to id` function.
+    
+'''
+
+
+
+tensor_blocks = []
+
+for col in cols_text:
+    texts = df[col].to_list()
+    m_len = max_lens[col]
+
+    seq_col = [text_to_id(text, m_len) for text in texts]
+
+    tensor_column = torch.tensor(seq_col, dtype=torch.long)
+    tensor_blocks.append(tensor_column)
+
+
+for col in cols_num:
+    tensor_num = torch.tensor(df[col].to_list(), dtype =torch.long).unsqueeze(1)
+    tensor_blocks.append(tensor_num)
+
+X_final = torch.cat(tensor_blocks, dim=1)
+
+torch.save({
+    'X': X_final,
+    'y': y,
+    'vocab': alphabet,
+    'vocab_size': len(alphabet) 
+}, "csic_rnn_inputs.pt")
+
+print(
+    f'''
+        'X': {X_final},
+        'y': {y},
+        'vocab': {alphabet},
+        'vocab_size': {len(alphabet)} 
+    '''
+)
