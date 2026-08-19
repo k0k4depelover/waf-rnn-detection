@@ -3,7 +3,7 @@
 Tokenizing CSV full in memory using Polars.
 
 This is the second step in processing, we are finally getting a Parquet file
-wich is an column-oriente data format designed for efficient data storage
+wich is an column-orient data format designed for efficient data storage
 and retrieval wich gives compression and encoding schemes with enhanced 
 performance.
 
