@@ -28,3 +28,9 @@ train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
 train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
+
+
+# First we create a class WAF_RRN that hereda inherits nn.Module
+class WAF_RNN(nn.Module):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
